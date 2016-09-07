@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+
+require 'fileutils'
+
+if !File.exist?("/usr/lib/golang-1.7")
+  system("wget https://storage.googleapis.com/golang/go1.7.linux-amd64.tar.gz")
+  system("tar -zxf go1.7.linux-amd64.tar.gz")
+  system("mv go /usr/lib/golang-1.7")
+end
+
+system("alternatives --install /usr/bin/go go /usr/lib/golang-1.7/bin/go 1000")
+system("alternatives --install /usr/bin/godoc godoc /usr/lib/golang-1.7/bin/godoc 1000")
+File.open("/etc/environment", "w") do |fl|
+  fl.write("export GOROOT='/usr/lib/golang-1.7'")
+end
+
+
+%w(kube-apiserver kube-controller-manager kubectl kubelet kube-proxy kube-scheduler).each do |kube_command|
+  if File.exist?("/usr/bin/#{kube_command}")
+    system("mv /usr/bin/#{kube_command} #{kube_command}.orig")
+  end
+
+  if File.exist?("/k8s_package/local/bin/linux/amd64/#{kube_command}")
+    system("cp /k8s_package/local/bin/linux/amd64/#{kube_command} /usr/bin/#{kube_command}")
+  end
+end
