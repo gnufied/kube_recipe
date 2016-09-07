@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'fileutils'
+master_hostname = "xaos.master.lan"
 
 if !File.exist?("/usr/lib/golang-1.7")
   system("wget https://storage.googleapis.com/golang/go1.7.linux-amd64.tar.gz")
@@ -24,3 +25,28 @@ end
     system("cp /k8s_package/local/bin/linux/amd64/#{kube_command} /usr/bin/#{kube_command}")
   end
 end
+
+flannel_sys_config =<<-EOD
+# Flanneld configuration options
+
+# etcd url location.  Point this to the server where etcd runs
+FLANNEL_ETCD="http://#{master_hostname}:4001"
+
+# etcd config key.  This is the configuration key that flannel queries
+# For address range assignment
+FLANNEL_ETCD_KEY="/coreos.com/network"
+
+# Any additional options that you want to pass
+FLANNEL_OPTIONS="-iface eth1"
+EOD
+
+File.open("/etc/sysconfig/flanneld", "w") do |fl|
+  fl.write(flannel_sys_config)
+end
+
+system("systemctl enable flanneld")
+system("systemctl start flanneld")
+system("systemctl stop docker")
+system("ip link delete docker0")
+system("systemctl start flanneld")
+system("systemctl start docker")

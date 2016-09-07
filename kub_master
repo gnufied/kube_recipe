@@ -1,9 +1,10 @@
 #!/usr/bin/env ruby
 
 require 'fileutils'
+require 'json'
 
 master_ip = "192.168.1.60"
-
+master_hostname = "xaos.master.lan"
 
 etc_conf =<<-EOD
 ETCD_NAME=default
@@ -29,7 +30,7 @@ KUBE_LOG_LEVEL="--v=0"
 KUBE_ALLOW_PRIV="--allow_privileged=true"
 
 # How the controller-manager, scheduler, and proxy find the apiserver
-KUBE_MASTER="--master=http://xaos.master.lan:8080"
+KUBE_MASTER="--master=http://#{master_hostname}:8080"
 EOD
 
 File.open("/etc/kubernetes/config", "w")  do |fl|
@@ -70,11 +71,11 @@ KUBELET_ADDRESS="--address=0.0.0.0"
 # KUBELET_PORT="--port=10250"
 
 # You may leave this blank to use the actual hostname
-KUBELET_HOSTNAME="--hostname_override=xaos.master.lan"
+KUBELET_HOSTNAME="--hostname_override=#{master_hostname}"
 
 #API Server
 # location of the api-server
-KUBELET_API_SERVER="--api_servers=http://xaos.master.lan:8080"
+KUBELET_API_SERVER="--api_servers=http://#{master_hostname}:8080"
 
 KUBELET_ARGS=""
 EOD
@@ -98,7 +99,7 @@ end
 
 kube_controller_config =<<-EOD
 # Comma separated list of minions
-KUBELET_ADDRESSES="--machines=xaos.master.lan"
+KUBELET_ADDRESSES="--machines=#{master_hostname}"
 # Add you own!
 KUBE_CONTROLLER_MANAGER_ARGS=""
 EOD
@@ -157,7 +158,7 @@ spec:
           # Uncomment the following line to manually specify Kubernetes API server Host
           # If not specified, Dashboard will attempt to auto discover the API server and connect
           # to it. Uncomment only if the default does not work.
-          - --apiserver-host=http://xaos.master.lan:8080
+          - --apiserver-host=http://#{master_hostname}:8080
         livenessProbe:
           httpGet:
             path: /
@@ -184,4 +185,41 @@ EOD
 
 File.open("dashboard.yaml", "w") do |fl|
   fl.write(kube_dashboard_data)
+end
+
+check_container = `kubectl get pods  --all-namespaces -o json`
+json_data = JSON.load(check_container)
+
+build_dashboard = lambda do
+  system("kubectl create -f dashboard.yaml")
+end
+
+begin
+  pod_name = json_data["items"][0]["metadata"]["labels"]["app"]
+  if pod_name != "kubernetes-dashboard"
+    build_dashboard.call()
+  end
+rescue
+  build_dashboard.call()
+end
+
+flanneld_config =<<-EOD
+{
+    "Network": "18.16.0.0/16",
+    "SubnetLen": 24,
+    "Backend": {
+        "Type": "vxlan",
+        "VNI": 1
+     }
+}
+EOD
+
+File.open("fl_config.json", "w") do |fl|
+  fl.write(flanneld_config)
+end
+
+check_config = `etcdctl get /coreos.com/network/config`
+
+if $?.exitstatus != 0
+  system("etcdctl set /coreos.com/network/config < fl_config.json")
 end

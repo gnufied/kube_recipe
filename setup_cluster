@@ -4,9 +4,10 @@ require 'shellwords'
 require 'fileutils'
 
 
+# master2: { path: "/home/gnufied/vagrants/kube_master2", hostname: "xaos.master2.lan" },
+
 hosts = {
   master: { path: "/home/gnufied/vagrants/kube_master", hostname: "xaos.master.lan" },
-  master2: { path: "/home/gnufied/vagrants/kube_master2", hostname: "xaos.master2.lan" },
   node1: { path: "/home/gnufied/vagrants/kube_node2", hostname: "xaos.node1.lan" },
   node2: { path: "/home/gnufied/vagrants/kube_node2", hostname: "xaos.node2.lan" },
 }
@@ -46,6 +47,10 @@ when "reload"
   hosts.each do |node_name, data_dict|
     system("cd #{data_dict[:path]} && vagrant reload --provision")
     set_hostname(data_dict[:path], data_dict[:hostname])
+  end
+when "provision"
+  hosts.each do |node_name, data_dict|
+    system("cd #{data_dict[:path]} && vagrant provision")
   end
 when "hostname"
   hosts.each do |node_name, data_dict|
