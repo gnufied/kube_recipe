@@ -50,3 +50,5 @@ system("systemctl stop docker")
 system("ip link delete docker0")
 system("systemctl start flanneld")
 system("systemctl start docker")
+hostname=`hostname`
+puts "********** done provisioning #{hostname} **********"
