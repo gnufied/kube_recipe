@@ -37,8 +37,19 @@ def restart_master(vagrant_path, hostname)
   end
 end
 
+def start_docker_registry
+  docker_reg_command =<<-EOD
+docker run -d -p 5000:5000 --restart=always --name registry \
+  -v /home/gnufied/docker_files:/var/lib/registry \
+  registry:2
+  EOD
+  system(docker_reg_command)
+end
+
 case cmd_arg
 when "up"
+  start_docker_registry()
+  sleep(2)
   hosts.each do |node_name, data_dict|
     system("cd #{data_dict[:path]} && vagrant up")
     set_hostname(data_dict[:path], data_dict[:hostname])
@@ -60,4 +71,6 @@ when "hostname"
 when "restart_master"
   master_name = (ARGV[1].strip).to_sym
   restart_master(hosts[master_name][:path], hosts[master_name][:hostname])
+when 'registry'
+  start_docker_registry()
 end
