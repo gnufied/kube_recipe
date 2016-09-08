@@ -1,9 +1,10 @@
 #!/bin/bash
 
 dnf update -y
+hostnamectl set-hostname docker_reg.lan
 systemctl disable firewalld || true
 systemctl stop firewalld || true
-dnf install -y docker-distribution
+yum install -y docker-distribution
 systemctl start docker-distribution
 systemctl enable docker-distribution
 systemctl is-active docker-distribution
