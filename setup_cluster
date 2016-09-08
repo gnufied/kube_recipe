@@ -50,6 +50,7 @@ when "reload"
   end
 when "provision"
   hosts.each do |node_name, data_dict|
+    set_hostname(data_dict[:path], data_dict[:hostname])
     system("cd #{data_dict[:path]} && vagrant provision")
   end
 when "hostname"

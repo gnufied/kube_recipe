@@ -1,0 +1,61 @@
+#!/usr/bin/env ruby
+
+require 'fileutils'
+
+master_hostname = "xaos.master.lan"
+master_ip = "192.168.1.60"
+hostname = `hostname`.strip()
+
+system("dnf install -y kubernetes-node")
+
+kube_config =<<-EOD
+KUBE_LOGTOSTDERR="--logtostderr=true"
+
+# journal message level, 0 is debug
+KUBE_LOG_LEVEL="--v=0"
+
+# Should this cluster be allowed to run privileged docker containers
+KUBE_ALLOW_PRIV="--allow-privileged=false"
+
+# How the controller-manager, scheduler, and proxy find the apiserver
+KUBE_MASTER="--master=http://#{master_hostname}:8080"
+EOD
+
+File.open("/etc/kubernetes/config", "w") do |fl|
+  fl.write(kube_config)
+end
+
+kubelet_config =<<-EOD
+###
+# kubernetes kubelet (minion) config
+
+# The address for the info server to serve on (set to 0.0.0.0 or "" for all interfaces)
+KUBELET_ADDRESS="--address=0.0.0.0"
+
+# The port for the info server to serve on
+# KUBELET_PORT="--port=10250"
+
+# You may leave this blank to use the actual hostname
+KUBELET_HOSTNAME="--hostname-override=#{hostname}"
+
+# location of the api-server
+KUBELET_API_SERVER="--api-servers=http://#{master_hostname}:8080"
+
+# Add your own!
+KUBELET_ARGS=""
+EOD
+
+File.open("/etc/kubernetes/kubelet", "w") do |fl|
+  fl.write(kubelet_config)
+end
+
+%w(docker kube-proxy.service kubelet.service).each do |service|
+  system("systemctl restart #{service}")
+  sleep(1)
+  system("systemctl enable #{service}")
+  sleep(1)
+  system("systemctl status #{service}")
+  sleep(1)
+end
+
+puts "########## Done kub_node : #{hostname} ########## "
