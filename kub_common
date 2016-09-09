@@ -4,7 +4,7 @@ require 'fileutils'
 master_hostname = "xaos.master.lan"
 
 if !File.exist?("/usr/lib/golang-1.7")
-  system("wget https://storage.googleapis.com/golang/go1.7.linux-amd64.tar.gz")
+  system("wget -nv https://storage.googleapis.com/golang/go1.7.linux-amd64.tar.gz")
   system("tar -zxf go1.7.linux-amd64.tar.gz")
   system("mv go /usr/lib/golang-1.7")
 end
@@ -44,11 +44,5 @@ File.open("/etc/sysconfig/flanneld", "w") do |fl|
   fl.write(flannel_sys_config)
 end
 
-system("systemctl enable flanneld")
-system("systemctl start flanneld")
-system("systemctl stop docker")
-system("ip link delete docker0")
-system("systemctl start flanneld")
-system("systemctl start docker")
 hostname=`hostname`
 puts "********** done provisioning #{hostname} **********"

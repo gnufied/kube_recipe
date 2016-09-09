@@ -83,6 +83,26 @@ def up_provision(node_name, node_dict)
   end
 end
 
+def nuke_hosts
+  hosts.each do |node_name, data_dict|
+    puts "Attempting to nuke #{node_name}"
+    system("cd #{data_dict[:path]} && vagrant destroy --force")
+  end
+end
+
+def restart_hosts
+  hosts.each do |node_name, data_dict|
+    FileUtils.cd(data_dict[:path]) do
+      system("vagrant up")
+      set_hostname(data_dict[:path], data_dict[:hostname])
+      ifconfig = `vagrant ssh -c ifconfig`
+      if ifconfig.include?(data_dict[:ip])
+        puts "********** Node #{node_name} provisioned with ip #{data_dict[:ip]}"
+      end
+    end
+  end
+end
+
 case cmd_arg
 when "up"
   start_docker_registry()
@@ -124,10 +144,8 @@ when 'halt'
     system("cd #{data_dict[:path]} && vagrant halt")
   end
 when 'nuke'
-  hosts.each do |node_name, data_dict|
-    puts "Attempting to nuke #{node_name}"
-    system("cd #{data_dict[:path]} && vagrant destroy --force")
-  end
+  nuke_hosts()
+  restart_hosts()
 else
   puts "please specify one of the following : up, reload, provision, restart_master, registry"
 end

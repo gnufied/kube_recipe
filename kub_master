@@ -5,6 +5,7 @@ require 'json'
 
 master_ip = "192.168.1.60"
 master_hostname = "xaos.master.lan"
+current_hostname = `hostname`
 
 etc_conf =<<-EOD
 ETCD_NAME=default
@@ -218,8 +219,26 @@ File.open("fl_config.json", "w") do |fl|
   fl.write(flanneld_config)
 end
 
-check_config = `etcdctl get /coreos.com/network/config`
-
-if $?.exitstatus != 0
-  system("etcdctl set /coreos.com/network/config < fl_config.json")
+def configure_flanneld
+  loop do
+    check_config = `etcdctl get /coreos.com/network/config`
+    if !check_config.include?("vxlan")
+      puts "********** Configuring flanneld in etc "
+      system("etcdctl set /coreos.com/network/config < fl_config.json")
+      sleep(2)
+    else
+      puts "********** flanneld has been configured in etcd"
+      break
+    end
+  end
 end
+
+configure_flanneld()
+system("systemctl enable flanneld")
+system("systemctl start flanneld")
+system("systemctl stop docker")
+system("ip link delete docker0")
+system("systemctl start flanneld")
+system("systemctl start docker")
+
+puts "########## Done configuring node #{current_hostname} ########## "

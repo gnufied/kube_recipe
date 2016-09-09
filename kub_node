@@ -58,4 +58,11 @@ end
   sleep(1)
 end
 
+system("systemctl enable flanneld")
+system("systemctl start flanneld")
+system("systemctl stop docker")
+system("ip link delete docker0")
+system("systemctl start flanneld")
+system("systemctl start docker")
+
 puts "########## Done kub_node : #{hostname} ########## "
