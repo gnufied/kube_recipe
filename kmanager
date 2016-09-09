@@ -8,7 +8,7 @@ require 'fileutils'
 
 hosts = {
   master: { path: "/home/gnufied/vagrants/kube_master", hostname: "xaos.master.lan" },
-  node1: { path: "/home/gnufied/vagrants/kube_node2", hostname: "xaos.node1.lan" },
+  node1: { path: "/home/gnufied/vagrants/kube_node1", hostname: "xaos.node1.lan" },
   node2: { path: "/home/gnufied/vagrants/kube_node2", hostname: "xaos.node2.lan" },
 }
 
@@ -46,6 +46,12 @@ docker run -d -p 5000:5000 --restart=always --name registry \
   system(docker_reg_command)
 end
 
+def ssh_to_host(host_path)
+  FileUtils.cd(host_path) do
+    system("vagrant ssh")
+  end
+end
+
 case cmd_arg
 when "up"
   start_docker_registry()
@@ -73,6 +79,11 @@ when "restart_master"
   restart_master(hosts[master_name][:path], hosts[master_name][:hostname])
 when 'registry'
   start_docker_registry()
+when 'ssh'
+  node_name = (ARGV[1].strip).to_sym
+  host_path = hosts[node_name][:path]
+  puts "SSHing to #{host_path}"
+  ssh_to_host(host_path)
 else
   puts "please specify one of the following : up, reload, provision, restart_master, registry"
 end
