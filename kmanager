@@ -7,9 +7,13 @@ require 'fileutils'
 # master2: { path: "/home/gnufied/vagrants/kube_master2", hostname: "xaos.master2.lan" },
 
 hosts = {
-  master: { path: "/home/gnufied/vagrants/kube_master", hostname: "xaos.master.lan" },
+  master: {
+    path: "/home/gnufied/vagrants/kube_master",
+    hostname: "xaos.master.lan",
+    ip: "192.168.1.60"
+  },
   node1: { path: "/home/gnufied/vagrants/kube_node1", hostname: "xaos.node1.lan" },
-  node2: { path: "/home/gnufied/vagrants/kube_node2", hostname: "xaos.node2.lan" },
+  node2: { path: "/home/gnufied/vagrants/kube_node2", hostname: "xaos.node2.lan" }
 }
 
 cmd_arg = ARGV[0].strip rescue "default"
@@ -56,9 +60,20 @@ case cmd_arg
 when "up"
   start_docker_registry()
   sleep(2)
-  hosts.each do |node_name, data_dict|
-    system("cd #{data_dict[:path]} && vagrant up")
-    set_hostname(data_dict[:path], data_dict[:hostname])
+
+  # lets first provision master
+  system("cd #{hosts[:master][:path]} && vagrant up")
+  set_hostname(data_dict[:path], data_dict[:hostname])
+  ifconfig = `cd #{hosts[:master][:path]} && vagrant ssh -c ifconfig`
+  if ifconfig.include?(hosts[:master][:ip])
+    puts "********** Master is up ********** "
+    hosts.each do |node_name, data_dict|
+      next if node_name == :master
+      system("cd #{data_dict[:path]} && vagrant up")
+      set_hostname(data_dict[:path], data_dict[:hostname])
+    end
+  else
+    puts "********** Provisioning master failed ********** "
   end
 when "reload"
   hosts.each do |node_name, data_dict|
