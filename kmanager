@@ -12,8 +12,14 @@ hosts = {
     hostname: "xaos.master.lan",
     ip: "192.168.1.60"
   },
-  node1: { path: "/home/gnufied/vagrants/kube_node1", hostname: "xaos.node1.lan" },
-  node2: { path: "/home/gnufied/vagrants/kube_node2", hostname: "xaos.node2.lan" }
+  node1: {
+    path: "/home/gnufied/vagrants/kube_node1", hostname: "xaos.node1.lan",
+    ip: "192.168.33.11"
+  },
+  node2: {
+    path: "/home/gnufied/vagrants/kube_node2", hostname: "xaos.node2.lan",
+    ip: "192.168.33.12"
+  }
 }
 
 cmd_arg = ARGV[0].strip rescue "default"
@@ -56,24 +62,37 @@ def ssh_to_host(host_path)
   end
 end
 
+def up_provision(node_name, node_dict)
+  FileUtils.cd(node_dict[:path]) do
+    system("vagrant up")
+    set_hostname(node_dict[:path], node_dict[:hostname])
+    ifconfig = `vagrant ssh -c ifconfig`
+    if ifconfig.include?(node_dict[:ip])
+      system("vagrant provision")
+      return true
+    else
+      system("vagrant reload")
+      update_ifconfig = `vagrant ssh -c ifconfig`
+      if update_ifconfig.include?(node_dict[:ip])
+        system("vagrant provision")
+        return true
+      else
+        return false
+      end
+    end
+  end
+end
+
 case cmd_arg
 when "up"
   start_docker_registry()
   sleep(2)
 
-  # lets first provision master
-  system("cd #{hosts[:master][:path]} && vagrant up")
-  set_hostname(data_dict[:path], data_dict[:hostname])
-  ifconfig = `cd #{hosts[:master][:path]} && vagrant ssh -c ifconfig`
-  if ifconfig.include?(hosts[:master][:ip])
-    puts "********** Master is up ********** "
-    hosts.each do |node_name, data_dict|
-      next if node_name == :master
-      system("cd #{data_dict[:path]} && vagrant up")
-      set_hostname(data_dict[:path], data_dict[:hostname])
+  hosts.each do |node_name, data_dict|
+    if !up_provision(node_name, data_dict)
+      puts "Bringing up node #{node_name} failed, fix before continuing"
+      break
     end
-  else
-    puts "********** Provisioning master failed ********** "
   end
 when "reload"
   hosts.each do |node_name, data_dict|
@@ -99,6 +118,16 @@ when 'ssh'
   host_path = hosts[node_name][:path]
   puts "SSHing to #{host_path}"
   ssh_to_host(host_path)
+when 'halt'
+  hosts.each do |node_name, data_dict|
+    puts "Attempting shutdown of #{node_name}"
+    system("cd #{data_dict[:path]} && vagrant halt")
+  end
+when 'nuke'
+  hosts.each do |node_name, data_dict|
+    puts "Attempting to nuke #{node_name}"
+    system("cd #{data_dict[:path]} && vagrant destroy --force")
+  end
 else
   puts "please specify one of the following : up, reload, provision, restart_master, registry"
 end
