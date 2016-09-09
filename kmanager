@@ -62,7 +62,7 @@ def ssh_to_host(host_path)
   end
 end
 
-def up_provision(node_name, node_dict)
+def resume(node_name, node_dict)
   FileUtils.cd(node_dict[:path]) do
     system("vagrant up")
     set_hostname(node_dict[:path], node_dict[:hostname])
@@ -90,7 +90,7 @@ def nuke_hosts
   end
 end
 
-def restart_hosts
+def start_hosts
   hosts.each do |node_name, data_dict|
     FileUtils.cd(data_dict[:path]) do
       system("vagrant up")
@@ -107,13 +107,7 @@ case cmd_arg
 when "up"
   start_docker_registry()
   sleep(2)
-
-  hosts.each do |node_name, data_dict|
-    if !up_provision(node_name, data_dict)
-      puts "Bringing up node #{node_name} failed, fix before continuing"
-      break
-    end
-  end
+  start_hosts()
 when "reload"
   hosts.each do |node_name, data_dict|
     system("cd #{data_dict[:path]} && vagrant reload --provision")
@@ -145,7 +139,28 @@ when 'halt'
   end
 when 'nuke'
   nuke_hosts()
-  restart_hosts()
+  start_hosts()
+when 'resume'
+  start_docker_registry()
+  sleep(2)
+
+  hosts.each do |node_name, data_dict|
+    if !resume(node_name, data_dict)
+      puts "Bringing up node #{node_name} failed, fix before continuing"
+      break
+    end
+  end
 else
-  puts "please specify one of the following : up, reload, provision, restart_master, registry"
+  help_message =<<-EOD
+please specify one of the followig :
+        up             : bring up brand new kube cluster
+        reload         : reload the kube cluster
+        provision      : provision the kube cluster
+        restart_master : restart master node
+        ssh            : connect to specific node
+        halt           : halt all the nodes in cluster and master
+        nuke           : stop and destroy existing nodes and rebuild the cluster
+        resume         : Resume previously running cluster
+  EOD
+  puts help_message
 end

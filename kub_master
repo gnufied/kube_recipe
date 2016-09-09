@@ -241,4 +241,4 @@ system("ip link delete docker0")
 system("systemctl start flanneld")
 system("systemctl start docker")
 
-puts "########## Done configuring node #{current_hostname} ########## "
+puts "########## Done configuring master #{current_hostname} ########## "
