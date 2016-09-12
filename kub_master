@@ -124,9 +124,10 @@ File.open("/etc/kubernetes/scheduler", "w") do |fl|
   fl.write(kube_scheduler_config)
 end
 
-%w(kube-apiserver kube-controller-manager kube-scheduler kube-proxy kubelet etcd).each do |service|
+%w(etcd kube-apiserver kube-controller-manager kube-scheduler kube-proxy kubelet).each do |service|
   system("systemctl stop #{service}")
   system("systemctl start #{service}")
+  sleep(5)
 end
 
 
@@ -240,5 +241,8 @@ system("systemctl stop docker")
 system("ip link delete docker0")
 system("systemctl start flanneld")
 system("systemctl start docker")
+
+puts "********** Restarting kubelet **********"
+system("systemctl start kubelet")
 
 puts "########## Done configuring master #{current_hostname} ########## "

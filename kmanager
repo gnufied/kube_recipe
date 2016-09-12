@@ -132,6 +132,16 @@ when 'ssh'
   host_path = hosts[node_name][:path]
   puts "SSHing to #{host_path}"
   ssh_to_host(host_path)
+when 'push'
+  hosts.each do |node_name, data_dict|
+    puts "Attempting snapshot of #{node_name}"
+    system("cd #{data_dict[:path]} && vagrant snapshot push")
+  end
+when 'pop'
+  hosts.each do |node_name, data_dict|
+    puts "Attempting resume of #{node_name} from snapshot"
+    system("cd #{data_dict[:path]} && vagrant snapshot pop")
+  end
 when 'halt'
   hosts.each do |node_name, data_dict|
     puts "Attempting shutdown of #{node_name}"

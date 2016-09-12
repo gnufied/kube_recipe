@@ -65,4 +65,7 @@ system("ip link delete docker0")
 system("systemctl start flanneld")
 system("systemctl start docker")
 
+puts "********** Restarting kubelet **********"
+system("systemctl start kubelet")
+
 puts "########## Done kub_node : #{hostname} ########## "
