@@ -32,5 +32,7 @@ am using `pi-hole` on my raspberry pi, so I chose to define them there. But anyt
 If everything is configured correctly you can bring the cluster up by running following command.
 
 ```
-~> kmanager up
+# Also ensure other shell scripts from checkout are executable
+~> chmod u+x kmanager
+~> ./kmanager up
 ```
