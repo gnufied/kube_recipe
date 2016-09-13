@@ -1,0 +1,7 @@
+#!/bin/bash
+
+dnf install -y ntp glusterfs-server
+
+systemctl disable iptables-services firewalld || true
+systemctl stop iptables-services firewalld || true
+systemctl start glusterd

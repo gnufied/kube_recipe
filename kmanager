@@ -2,30 +2,42 @@
 
 require 'shellwords'
 require 'fileutils'
+require 'pathname'
 
 
 # master2: { path: "/home/gnufied/vagrants/kube_master2", hostname: "xaos.master2.lan" },
 
-hosts = {
+$config_path = "/home/gnufied/kub_recipe"
+
+$hosts = {
   master: {
-    path: "/home/gnufied/vagrants/kube_master",
+    path: "vagrants/kube_master",
     hostname: "xaos.master.lan",
     ip: "192.168.1.60"
   },
   node1: {
-    path: "/home/gnufied/vagrants/kube_node1", hostname: "xaos.node1.lan",
+    path: "vagrants/kube_node1", hostname: "xaos.node1.lan",
     ip: "192.168.33.11"
   },
   node2: {
-    path: "/home/gnufied/vagrants/kube_node2", hostname: "xaos.node2.lan",
+    path: "vagrants/kube_node2", hostname: "xaos.node2.lan",
     ip: "192.168.33.12"
   }
 }
 
 cmd_arg = ARGV[0].strip rescue "default"
 
+def full_path(current_path)
+  pname = Pathname.new(current_path)
+  if pname.absolute?
+    current_path
+  else
+    File.expand_path(current_path, $config_path)
+  end
+end
+
 def set_hostname(vagrant_path, hostname)
-  FileUtils.cd(vagrant_path) do
+  FileUtils.cd(full_path(vagrant_path)) do
     hostname_args = ["vagrant", "ssh", "-c", "sudo hostnamectl set-hostname #{hostname}"]
     hostname_command = Shellwords.join(hostname_args)
     system(hostname_command)
@@ -35,7 +47,7 @@ end
 def restart_master(vagrant_path, hostname)
   %w(kube-apiserver kube-controller-manager kube-scheduler kube-proxy kubelet etcd).each do |service|
     puts "Restarting #{service} on #{hostname}"
-    FileUtils.cd(vagrant_path) do
+    FileUtils.cd(full_path(vagrant_path)) do
       stop_args = ["vagrant", "ssh", "-c", "sudo systemctl stop #{service}"]
       stop_cmd = Shellwords.join(stop_args)
       system(stop_cmd)
@@ -57,13 +69,13 @@ docker run -d -p 5000:5000 --restart=always --name registry \
 end
 
 def ssh_to_host(host_path)
-  FileUtils.cd(host_path) do
+  FileUtils.cd(full_path(host_path)) do
     system("vagrant ssh")
   end
 end
 
 def resume(node_name, node_dict)
-  FileUtils.cd(node_dict[:path]) do
+  FileUtils.cd(full_path(node_dict[:path])) do
     system("vagrant up")
     set_hostname(node_dict[:path], node_dict[:hostname])
     ifconfig = `vagrant ssh -c ifconfig`
@@ -84,15 +96,17 @@ def resume(node_name, node_dict)
 end
 
 def nuke_hosts
-  hosts.each do |node_name, data_dict|
-    puts "Attempting to nuke #{node_name}"
-    system("cd #{data_dict[:path]} && vagrant destroy --force")
+  $hosts.each do |node_name, data_dict|
+    FileUtils.cd(full_path(data_dict[:path])) do
+      puts "Attempting to nuke #{node_name}"
+      system("vagrant destroy --force")
+    end
   end
 end
 
 def start_hosts
-  hosts.each do |node_name, data_dict|
-    FileUtils.cd(data_dict[:path]) do
+  $hosts.each do |node_name, data_dict|
+    FileUtils.cd(full_path(data_dict[:path])) do
       system("vagrant up")
       set_hostname(data_dict[:path], data_dict[:hostname])
       ifconfig = `vagrant ssh -c ifconfig`
@@ -109,52 +123,65 @@ when "up"
   sleep(2)
   start_hosts()
 when "reload"
-  hosts.each do |node_name, data_dict|
-    system("cd #{data_dict[:path]} && vagrant reload --provision")
-    set_hostname(data_dict[:path], data_dict[:hostname])
+  $hosts.each do |node_name, data_dict|
+    FileUtils.cd(full_path(data_dict[:path])) do
+      system("vagrant reload --provision")
+      set_hostname(data_dict[:path], data_dict[:hostname])
+    end
   end
 when "provision"
-  hosts.each do |node_name, data_dict|
-    set_hostname(data_dict[:path], data_dict[:hostname])
-    system("cd #{data_dict[:path]} && vagrant provision")
+  $hosts.each do |node_name, data_dict|
+    FileUtils.cd(full_path(data_dict[:path])) do
+      system("cd #{data_dict[:path]} && vagrant provision")
+    end
   end
 when "hostname"
-  hosts.each do |node_name, data_dict|
+  $hosts.each do |node_name, data_dict|
     set_hostname(data_dict[:path], data_dict[:hostname])
   end
 when "restart_master"
   master_name = (ARGV[1].strip).to_sym
-  restart_master(hosts[master_name][:path], hosts[master_name][:hostname])
+  restart_master($hosts[master_name][:path], $hosts[master_name][:hostname])
 when 'registry'
   start_docker_registry()
 when 'ssh'
   node_name = (ARGV[1].strip).to_sym
-  host_path = hosts[node_name][:path]
+  host_path = $hosts[node_name][:path]
   puts "SSHing to #{host_path}"
   ssh_to_host(host_path)
+when 'cmd'
+  cmd_string = (ARGV[1].strip).to_sym
+  $hosts.each do |node_name, data_dict|
+    FileUtils.cd(full_path(data_dict[:path])) do
+      puts "Attempting run a command on #{node_name}"
+      cmd_args = ["vagrant", "ssh", "-c", cmd_string]
+      cmd_command = Shellwords.join(cmd_args)
+      system(cmd_command)
+    end
+  end
 when 'push'
-  hosts.each do |node_name, data_dict|
+  $hosts.each do |node_name, data_dict|
     puts "Attempting snapshot of #{node_name}"
     system("cd #{data_dict[:path]} && vagrant snapshot push")
   end
 when 'pop'
-  hosts.each do |node_name, data_dict|
+  $hosts.each do |node_name, data_dict|
     puts "Attempting resume of #{node_name} from snapshot"
     system("cd #{data_dict[:path]} && vagrant snapshot pop")
   end
 when 'halt'
-  hosts.each do |node_name, data_dict|
+  $hosts.each do |node_name, data_dict|
     puts "Attempting shutdown of #{node_name}"
     system("cd #{data_dict[:path]} && vagrant halt")
   end
 when 'nuke'
   nuke_hosts()
-  start_hosts()
+  # start_hosts()
 when 'resume'
   start_docker_registry()
   sleep(2)
 
-  hosts.each do |node_name, data_dict|
+  $hosts.each do |node_name, data_dict|
     if !resume(node_name, data_dict)
       puts "Bringing up node #{node_name} failed, fix before continuing"
       break
