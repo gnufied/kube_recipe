@@ -16,6 +16,17 @@ the location on host in which `kubernetes` binaries are found.
 
 You may also want to modify the ip address or bridge interface in `Vagrantfile`.
 
+You may have to slightly modify `kub_common`, `kub_node` and `kub_master` scripts too, but
+good news is - you just need to modify fqdn hostnames and ip there.
+
+
+# DNS
+
+The fqdns specified in these files should be resolvable.
+You can configure them in `/etc/hosts` of host machine. I
+am using `pi-hole` on my raspberry pi, so I chose to define them there. But anything works.
+
+
 # Bring the kubernetes cluster
 
 If everything is configured correctly you can bring the cluster up by running following command.
