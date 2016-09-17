@@ -161,18 +161,24 @@ when 'cmd'
   end
 when 'push'
   $hosts.each do |node_name, data_dict|
-    puts "Attempting snapshot of #{node_name}"
-    system("cd #{data_dict[:path]} && vagrant snapshot push")
+    FileUtils.cd(full_path(data_dict[:path])) do
+      puts "Attempting snapshot of #{node_name}"
+      system("vagrant snapshot push")
+    end
   end
 when 'pop'
   $hosts.each do |node_name, data_dict|
-    puts "Attempting resume of #{node_name} from snapshot"
-    system("cd #{data_dict[:path]} && vagrant snapshot pop")
+    FileUtils.cd(full_path(data_dict[:path])) do
+      puts "Attempting resume of #{node_name} from snapshot"
+      system("vagrant snapshot pop")
+    end
   end
 when 'halt'
   $hosts.each do |node_name, data_dict|
-    puts "Attempting shutdown of #{node_name}"
-    system("cd #{data_dict[:path]} && vagrant halt")
+    FileUtils.cd(full_path(data_dict[:path])) do
+      puts "Attempting shutdown of #{node_name}"
+      system("vagrant halt")
+    end
   end
 when 'nuke'
   nuke_hosts()

@@ -36,3 +36,7 @@ If everything is configured correctly you can bring the cluster up by running fo
 ~> chmod u+x kmanager
 ~> ./kmanager up
 ```
+
+# Debugging and help
+
+The scripts also have some helper stuff for debugging and
